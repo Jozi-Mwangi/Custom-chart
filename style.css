@@ -18,7 +18,7 @@ thead{
 #chartContainer {
     position: fixed;
     right: 0;
-    top: 50%;
+    top: 20%;
     transform: translate(0, -50);
     /* margin-bottom: 100px; */
 }

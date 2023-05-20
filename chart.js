@@ -16,10 +16,82 @@ class Chart {
         this.margin = options.size * 0.1
         this.transparency = 0.5
 
+        this.dataTrans = {
+            offset: [0,0], 
+            scale: 1
+        }
+
+        this.dragInfo = {
+            start: [0,0],
+            end: [0,0],
+            offset: [0,0],
+            dragging: false
+        }
+
         this.pixelBounds = this.#getPixelBounds()
         this.dataBounds = this.#getDataBounds()
+        this.defaultDataBounds = this.#getDataBounds()
 
+        this.#addEventListeners()
         this.#draw()
+    }
+
+    #addEventListeners(){
+        const {canvas, dataTrans, dragInfo} = this
+        canvas.onmousedown = (evt) => {
+            const dataLoc = this.#getMouse(evt, true)
+            // console.log(dataLoc);
+            dragInfo.start = dataLoc
+            dragInfo.dragging = true
+        }
+
+        canvas.onmousemove = (evt) =>{
+            if (dragInfo.dragging) {
+                const dataLoc = this.#getMouse(evt, true)
+                dragInfo.end = dataLoc
+                dragInfo.offset = math.subtract(
+                    dragInfo.start, dragInfo.end
+                )
+                const newOffset = math.add(
+                    dataTrans.offset, dragInfo.offset
+                )
+                // console.log(newOffset);
+                this.#updateDataBounds(newOffset)
+                this.#draw()
+            }
+        }
+
+        canvas.onmouseup = () => {
+            dataTrans.offset = math.add(
+                dataTrans.offset, dragInfo.offset
+            )
+            dragInfo.dragging = false
+        }
+    }
+
+    #updateDataBounds(offset){
+        const {dataBounds, defaultDataBounds:def} = this
+        dataBounds.left = def.left + offset[0]
+        dataBounds.right = def.right + offset[0]
+        dataBounds.top = def.top + offset[1]
+        dataBounds.bottom = def.bottom + offset[1]
+    }
+
+    #getMouse(evt, dataSpace=false){
+        const rect = this.canvas.getBoundingClientRect()
+        const pixelLoc = [
+            evt.clientX - rect.left,
+            evt.clientY - rect.top
+        ]
+        if (dataSpace) {
+            const dataLoc = math.remapPoint(
+                this.pixelBounds,
+                this.defaultDataBounds,
+                pixelLoc
+            )
+            return dataLoc
+        }
+        return pixelLoc
     }
 
     #getPixelBounds() {
@@ -91,6 +163,61 @@ class Chart {
         ctx.strokeStyle = "lightgray"
         ctx.stroke()
         ctx.setLineDash([])
+
+        const dataMin = math.remapPoint(
+            this.pixelBounds,
+            this.dataBounds,
+            [left, bottom]
+        )
+
+        graphics.drawText(ctx, {
+            text: math.formatNumber(dataMin[0], 2),
+            loc:[left, bottom],
+            size: margin*0.3,
+            align: "left",
+            vAlign:"top"
+        })
+
+        ctx.save()
+        ctx.translate(left, bottom)
+        ctx.rotate(-Math.PI/2)
+
+        graphics.drawText(ctx, {
+            text:math.formatNumber(dataMin[1], 2),
+            loc: [0,0],
+            size: margin*0.3,
+            align:"left",
+            vAlign:"bottom",
+        })
+
+        ctx.restore()
+        const dataMax = math.remapPoint(
+            this.pixelBounds,
+            this.dataBounds,
+            [right, top]
+        )
+
+        graphics.drawText(ctx, {
+            text: math.formatNumber(dataMax[0], 2),
+            loc:[right, bottom],
+            size: margin*0.3,
+            align: "right",
+            vAlign:"top"
+        })
+
+        ctx.save()
+        ctx.translate(left, top)
+        ctx.rotate(-Math.PI/2)
+
+        graphics.drawText(ctx, {
+            text:math.formatNumber(dataMax[1], 2),
+            loc: [0,0],
+            size: margin*0.3,
+            align:"right",
+            vAlign:"bottom",
+        })
+
+        ctx.restore()
     }
 
     #drawSamples () {
