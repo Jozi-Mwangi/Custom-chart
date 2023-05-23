@@ -4,6 +4,7 @@ class Chart {
 
         this.axesLabels = options.axesLabels
         this.styles = options.styles
+        this.icon = options.icon
 
         this.canvas = document.createElement("canvas")
         this.canvas.width = options.size
@@ -14,7 +15,7 @@ class Chart {
         this.ctx = this.canvas.getContext("2d")
 
         this.margin = options.size * 0.1
-        this.transparency = 0.5
+        this.transparency = 0.7
 
         this.dataTrans = {
             offset: [0,0], 
@@ -49,16 +50,20 @@ class Chart {
             if (dragInfo.dragging) {
                 const dataLoc = this.#getMouse(evt, true)
                 dragInfo.end = dataLoc
-                dragInfo.offset = math.subtract(
-                    dragInfo.start, dragInfo.end
+                dragInfo.offset = math.scaler(
+                    math.subtract(
+                        dragInfo.start,
+                        dragInfo.end
+                    ),
+                    dataTrans.scale
                 )
                 const newOffset = math.add(
                     dataTrans.offset, dragInfo.offset
                 )
                 // console.log(newOffset);
-                this.#updateDataBounds(newOffset)
+                this.#updateDataBounds(newOffset, dataTrans.scale)
                 this.#draw()
-            }
+            }   
         }
 
         canvas.onmouseup = () => {
@@ -67,14 +72,57 @@ class Chart {
             )
             dragInfo.dragging = false
         }
+        
+        canvas.onwheel =(evt)=> {
+            const dir = Math.sign(evt.deltaY)
+            const step = 0.02
+            dataTrans.scale += dir*step
+            dataTrans.scale = Math.max(
+                step,
+                Math.min(2, dataTrans.scale)
+            )
+
+            this.#updateDataBounds(
+                dataTrans.offset,
+                dataTrans.scale
+            )
+            this.#draw()
+            evt.preventDefault()
+        }
     }
 
-    #updateDataBounds(offset){
+    #updateDataBounds(offset, scale){
         const {dataBounds, defaultDataBounds:def} = this
         dataBounds.left = def.left + offset[0]
         dataBounds.right = def.right + offset[0]
         dataBounds.top = def.top + offset[1]
         dataBounds.bottom = def.bottom + offset[1]
+
+        const center = [
+            (dataBounds.left+dataBounds.right)/2,
+            (dataBounds.top + dataBounds.bottom)/2
+        ]
+
+        dataBounds.left = math.lerp(
+            center[0], 
+            dataBounds.left,
+            scale**2
+        )
+        dataBounds.right = math.lerp(
+            center[0], 
+            dataBounds.right,
+            scale**2
+        )
+        dataBounds.top = math.lerp(
+            center[1], 
+            dataBounds.top,
+            scale**2
+        )
+        dataBounds.bottom = math.lerp(
+            center[1], 
+            dataBounds.bottom,
+            scale**2
+        )
     }
 
     #getMouse(evt, dataSpace=false){
@@ -223,9 +271,31 @@ class Chart {
     #drawSamples () {
         const {samples, dataBounds, pixelBounds, ctx} = this
         for (const sample of samples){
-            const {point} = sample
+            const {point, label} = sample
             const pixelLoc = math.remapPoint(dataBounds, pixelBounds, point)
-            graphics.drawPoint(ctx, pixelLoc)
+            
+            switch(this.icon){
+                case "image":
+                    graphics.drawImage(
+                        ctx, this.styles[label].image,
+                        pixelLoc
+                    )
+                    break;
+                case "text":
+                    graphics.drawText(
+                        ctx, {
+                            text: this.styles[label].text,
+                            loc: pixelLoc,
+                            size: 20
+                        }
+                    )
+                    break; 
+                default :
+                    graphics.drawPoint(
+                        ctx, pixelLoc, 8, this.styles[label].color
+                    )
+                    break
+            }
         }
     }
 }
