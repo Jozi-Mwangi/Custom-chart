@@ -1,6 +1,7 @@
 class Chart {
-    constructor(container, samples, options){
+    constructor(container, samples, options, onClick=null){
         this.samples = samples
+        this.onClick = onClick
 
         this.axesLabels = options.axesLabels
         this.styles = options.styles
@@ -28,6 +29,9 @@ class Chart {
             offset: [0,0],
             dragging: false
         }
+
+        this.hoveredSample = null
+        this.selectedSample = null
 
         this.pixelBounds = this.#getPixelBounds()
         this.dataBounds = this.#getDataBounds()
@@ -62,8 +66,39 @@ class Chart {
                 )
                 // console.log(newOffset);
                 this.#updateDataBounds(newOffset, dataTrans.scale)
-                this.#draw()
-            }   
+            }
+            
+            const mosuseLoc = this.#getMouse(evt)
+            const pixPoints = this.samples.map(s=>
+                math.remapPoint(
+                    this.dataBounds,
+                    this.pixelBounds,
+                    s.point
+                )
+            )
+            const index = math.getNearest(mosuseLoc, pixPoints)
+            const nearestSample = this.samples[index]
+            const dist = math.distance(pixPoints[index], mosuseLoc)
+
+            if (dist<this.margin/2){
+                this.hoveredSample = nearestSample
+            } else {
+                this.hoveredSample = null
+            }
+            this.#draw()
+
+        }
+
+        canvas.onClick = () => {
+            if (this.hoveredSample){
+                this.hoveredSample = this.selectedSample
+            }
+            if (this.onClick){
+                this.onClick(
+                    this.selectedSample
+                )
+            }
+            this.#draw()
         }
 
         canvas.onmouseup = () => {
@@ -178,8 +213,39 @@ class Chart {
 
         this.#drawAxesLabels()
         ctx.globalAlpha = this.transparency
-        this.#drawSamples()
+        this.#drawSamples(this.samples)
         ctx.globalAlpha = 1
+
+        if (this.hoveredSample){
+            this.#emphasizeSample(
+                this.hoveredSample
+            )
+        }
+
+        if (this.selectedSample){
+            this.#emphasizeSample(
+                this.selectedSample, "yellow"
+            )
+        }
+    }
+
+    #emphasizeSample (sample, color="white"){
+        const pointLoc = math.remapPoint(
+            this.dataBounds,
+            this.pixelBounds,
+            sample.point
+        )
+        const grad = this.ctx.createRadialGradient(
+            ...pointLoc, 0, ...pointLoc, this.margin
+        )
+        grad.addColorStop(0, color)
+        grad.addColorStop(1, "rgba(255, 255, 255, 0)")
+        graphics.drawPoint(
+            this.ctx, pointLoc, grad, this.margin*2,
+        )
+        this.#drawSamples(
+            [sample]
+        )
     }
 
     #drawAxesLabels () {
@@ -268,8 +334,8 @@ class Chart {
         ctx.restore()
     }
 
-    #drawSamples () {
-        const {samples, dataBounds, pixelBounds, ctx} = this
+    #drawSamples (samples) {
+        const {dataBounds, pixelBounds, ctx} = this
         for (const sample of samples){
             const {point, label} = sample
             const pixelLoc = math.remapPoint(dataBounds, pixelBounds, point)

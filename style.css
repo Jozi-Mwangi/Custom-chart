@@ -22,3 +22,7 @@ thead{
     transform: translate(0, -50);
     /* margin-bottom: 100px; */
 }
+
+.emphasize{
+    background-color: yellow;
+}

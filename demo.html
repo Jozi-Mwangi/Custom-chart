@@ -51,7 +51,8 @@
                 const chart = new Chart (
                     chartContainer, 
                     samples,
-                    options
+                    options,
+                    handleClick
                 )
             }, 100)
 
@@ -65,13 +66,21 @@
             const body = dataTable.createTBody()
             for (const sample of samples){
                 const tr = body.insertRow()
+                tr.id = `sample_${sample.id}`
                 tr.insertCell().innerHTML = sample.id
                 tr.insertCell().innerHTML = sample.label
                 tr.insertCell().innerHTML = math.formatNumber(sample.point[0], 2)
                 tr.insertCell().innerHTML = math.formatNumber(sample.point[1],2)
             }
 
-
+            function handleClick(sample){
+                const el = document.getElementById(`sample_${sample.id}`)
+                el.classList.add("emphasize")
+                el.scrollIntoView({
+                    behavior: "smooth",
+                    block:"center"
+                })
+            }
 
         </script>
     </body>
